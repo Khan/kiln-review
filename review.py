@@ -82,14 +82,14 @@ def _get_repo_to_push_to(repo, preferred_repo):
     'default'.
 
     Arguments:
-        repo: the repo object for this hg operation
+        repo: the hg repository being used.  We need it only for its config.
         preferred_repo: the argument to 'hg review', or None if no
            argument is given.  This is the same as the DEST argument
            to 'hg push'.
     """
     # We do all case-insensitive comparisons here, and convert to a dict.
     repos = dict((x.lower(), y.lower())
-                 for (x,y) in repo.ui.configitems("paths"))
+                 for (x,y) in repo.ui.configitems('paths'))
     if preferred_repo:
 	return repos.get(preferred_repo.lower(), None)
     if 'default-push' in repos:
@@ -165,7 +165,7 @@ def _get_reviewers(ui, auth_token, reviewers):
 
 def _get_repo_index_for_repo_url(repo, auth_token, repo_url):
     """For a given repository, return its ixRepo, or None if not readable."""
-    url_prefix = repo.ui.config("auth", "kiln.prefix")
+    url_prefix = repo.ui.config('auth', 'kiln.prefix')
     all_projects = _slurp_from_kiln("Project", {'token': auth_token})
     for project in all_projects:
         for repo_group in project['repoGroups']:
@@ -222,7 +222,7 @@ def review(ui, repo, *dest, **opts):
     Using -e will open up your favorite editor and includes all the changeset
     descriptions for any revisions selected as the code review comment.
     """
-    url_prefix = repo.ui.config("auth","kiln.prefix")
+    url_prefix = repo.ui.config('auth', 'kiln.prefix')
     if url_prefix is None:
         ui.warn("In order to work, in your hgrc please set:\n\n")
         ui.warn("[auth]\n")

@@ -30,10 +30,11 @@ https://bitbucket.org/runeh/identities/src/0f9ac5a19e48/identities.py
 """
 
 import json
-import mercurial
+import mercurial.cmdutil
+import mercurial.scmutil
+import mercurial.ui
 import urllib
 import urllib2
-from mercurial import commands   # needed to access mercurial.cmdutil. shrug.
 
 
 class ReviewError(Exception): pass
@@ -231,6 +232,10 @@ def review(ui, repo, *dest, **opts):
         ui.warn("kiln.password = <password>\n")
         return 0
 
+    # dest is the commandline argument.  Only one should be specified.
+    if dest:
+        dest = dest[0]
+
     review_params = {}
 
     auth_token = _get_authtoken()
@@ -250,7 +255,6 @@ def review(ui, repo, *dest, **opts):
         changesets = [repo[rev].hex()[:12]
                       for rev in mercurial.scmutil.revrange(repo, revs)]
     else:
-        # TODO(csilvers): have it be all changesets in 'hg outgoing'
         changesets = ['tip']
     review_params['revs'] = changesets
 
@@ -271,10 +275,6 @@ def review(ui, repo, *dest, **opts):
          current_user = (repo.ui.config('auth', 'kiln.username') or
 	                 repo.ui.config('ui', 'username'))
          review_params['sDescription'] = ui.edit(default_comment, current_user)
-
-    # dest is the commandline argument.  Only one should be specified.
-    if dest:
-        dest = dest[0]
 
     repo_url_to_push_to = _get_repo_to_push_to(repo, dest)
     # TODO(csilvers): what is the right thing to do if this returns None?

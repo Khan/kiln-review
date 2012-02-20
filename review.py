@@ -31,6 +31,8 @@ https://bitbucket.org/runeh/identities/src/0f9ac5a19e48/identities.py
 
 import json
 import mercurial.cmdutil
+import mercurial.hg
+import mercurial.node
 import mercurial.scmutil
 import mercurial.ui
 import urllib
@@ -255,7 +257,8 @@ def review(ui, repo, *dest, **opts):
         changesets = [repo[rev].hex()[:12]
                       for rev in mercurial.scmutil.revrange(repo, revs)]
     else:
-        changesets = ['tip']
+        changesets = [mercurial.node.hex(n)[:12]
+                      for n in mercurial.hg._outgoing(ui, repo, dest, {})]
     review_params['revs'] = changesets
 
     # -p: people

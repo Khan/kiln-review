@@ -184,7 +184,7 @@ def _get_repo_index_for_repo_url(repo, auth_token, repo_url):
                                             repo['sGroupSlug'], repo['sSlug'])
                 if url.lower() == repo_url.lower():
                     return repo['ixRepo']
-    return None
+    raise mercurial.util.Abort('No repository found matching %s' % repo_url)
 
 
 def _make_review(params):
@@ -298,7 +298,6 @@ def push_with_review(origfn, ui, repo, *args, **opts):
          review_params['sDescription'] = ui.edit(default_comment, current_user)
 
     repo_url_to_push_to = _get_repo_to_push_to(repo, dest)
-    # TODO(csilvers): what is the right thing to do if this returns None?
     review_params['ixRepo'] = _get_repo_index_for_repo_url(repo, auth_token,
                                                            repo_url_to_push_to)
 

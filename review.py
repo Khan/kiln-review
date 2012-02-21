@@ -87,12 +87,12 @@ def _get_repo_to_push_to(repo, preferred_repo):
     """Of all the repositories in the user's path, return the one to push to.
 
     The 'best' if the passed-in preferred_repo, which comes from the
-    'hg review' commandline if present, or 'default-push' or
+    'hg push' commandline if present, or 'default-push' or
     'default'.
 
     Arguments:
         repo: the hg repository being used.  We need it only for its config.
-        preferred_repo: the argument to 'hg review', or None if no
+        preferred_repo: the argument to 'hg push', or None if no
            argument is given.  This is the same as the DEST argument
            to 'hg push'.
     """
@@ -211,12 +211,12 @@ def push_with_review(origfn, ui, repo, *args, **opts):
 
     Specify people to peek at your review by passing a comma-separated list
     of people to review your code, by passing multiple --rr flags, or both.
-      hg review --rr tim,alex,ben --rr joey
+      hg push --rr tim,alex,ben --rr joey
 
     You can specify revisions by passing a hash-range,
-      hg review --rrev 13bs32abc:tip
+      hg push --rrev 13bs32abc:tip
     or by passing individual changesets
-      hg review --rrev 75c471319a5b --rrev 41056495619c
+      hg push --rrev 75c471319a5b --rrev 41056495619c
 
     Using --reditor will open up your favorite editor and includes all
     the changeset descriptions for any revisions selected as the code

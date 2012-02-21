@@ -21,6 +21,7 @@ In that case, this extension will just do a normal 'hg push'.
 
 This script requires the following fields to be set in the hg
 config file (.hgrc or the like):
+   [auth]
    kiln.prefix: the kilnhg url for this project (eg http://khanacademy.kilnhg.org)
    kiln.username: your kilnhg username (eg csilvers@khanacademy.org)
    kiln.password: your kilnhg password (eg likeidtellyou)
@@ -44,16 +45,21 @@ import urllib2
 
 def _slurp(url, params, post=False):
     """Fetch contents of a url-with-query-params dict (either GET or POST)."""
-    params = urllib.urlencode(params, doseq=True)   # param-values can be lists
-    if post:
-        handle = urllib2.urlopen(url, params)
-    else:
-        handle = urllib2.urlopen(url + '?' + params)
     try:
-    	content = handle.read()
-    	return json.loads(content)
-    finally:
-        handle.close()
+        params = urllib.urlencode(params, doseq=True)   # param-vals can be lists
+        if post:
+            handle = urllib2.urlopen(url, params)
+        else:
+            handle = urllib2.urlopen(url + '?' + params)
+        try:
+            content = handle.read()
+        finally:
+            handle.close()
+    except urllib2.URLError, why:
+        # It would be nice to show params too, but they may contain a password.
+        raise mercurial.util.Abort('Error communicating with kilnhg:'
+                                   ' url "%s", error "%s"' % (url, why))
+    return json.loads(content)
 
 
 # via https://developers.fogbugz.com/default.asp?W157
@@ -94,11 +100,11 @@ def _get_repo_to_push_to(repo, preferred_repo):
     repos = dict((x.lower(), y.lower())
                  for (x,y) in repo.ui.configitems('paths'))
     if preferred_repo:
-	return repos.get(preferred_repo.lower(), None)
+        return repos.get(preferred_repo.lower(), None)
     if 'default-push' in repos:
-	return repos['default-push']
+        return repos['default-push']
     if 'default' in repos:
-	return repos['default']
+        return repos['default']
     return None
 
 
@@ -144,7 +150,7 @@ def _get_reviewers(ui, auth_token, reviewers):
     for reviewer in all_reviewers:
         candidate_reviewers = []  # all people whose name match 'reviewer'
         for person in all_people:
-       	    if (reviewer in person["sName"].lower() or
+            if (reviewer in person["sName"].lower() or
                 reviewer in person["sEmail"].lower()):
                candidate_reviewers.append(person)
 
@@ -162,7 +168,7 @@ def _get_reviewers(ui, auth_token, reviewers):
             picked_reviewer = candidate_reviewers[pick]
         else:
             picked_reviewer = candidate_reviewers[0]
-	disambiguated_reviewers[picked_reviewer['sEmail']] = picked_reviewer
+        disambiguated_reviewers[picked_reviewer['sEmail']] = picked_reviewer
 
     return disambiguated_reviewers.values()
 
@@ -187,7 +193,7 @@ def _make_review(params):
     Arguments:
       params: the parameters to the "create review" API call.
               See https://developers.fogbugz.com/default.asp?W167
-	      We use ixReviewers, ixRepo, maybe revs and title and desc.
+              We use ixReviewers, ixRepo, maybe revs and title and desc.
 
     Returns:
       The return message from the "create review" API call: None on
@@ -204,25 +210,30 @@ def push_with_review(origfn, ui, repo, *args, **opts):
     changeset.
 
     Specify people to peek at your review by passing a comma-separated list
-    of people to review your code, by passing multiple -rr flags, or both.
-      hg review -rr tim,alex,ben -rr joey
+    of people to review your code, by passing multiple --rr flags, or both.
+      hg review --rr tim,alex,ben --rr joey
 
     You can specify revisions by passing a hash-range,
-      hg review -rrev 13bs32abc:tip
+      hg review --rrev 13bs32abc:tip
     or by passing individual changesets
-      hg review -rrev 75c471319a5b -rrev 41056495619c
+      hg review --rrev 75c471319a5b --rrev 41056495619c
 
-    Using -reditor will open up your favorite editor and includes all
+    Using --reditor will open up your favorite editor and includes all
     the changeset descriptions for any revisions selected as the code
     review comment.
 
-    All the flags supported by 'hg push' are pass through to push.
+    All the flags supported by 'hg push' are passed through to push.
     """
+    # First order of business: If the user passed in --rr none, just
+    # fall back onto the native push.
+    if opts.get('rr') == ['none']:
+        return origfn(ui, repo, *args, **opts)
+
     url_prefix = repo.ui.config('auth', 'kiln.prefix')
     if url_prefix is None:
         ui.warn("In order to work, in your hgrc please set:\n\n")
         ui.warn("[auth]\n")
-        ui.warn("kiln.prefix = https://<kilnrepo>.kilnhg.com\n")
+        ui.warn("kiln.prefix = https://<kilnrepo.kilnhg.com>\n")
         ui.warn("kiln.username = <username>@<domain>.com\n")
         ui.warn("kiln.password = <password>\n")
         return 0
@@ -255,8 +266,12 @@ def push_with_review(origfn, ui, repo, *args, **opts):
         changesets = [repo[rev].hex()[:12]
                       for rev in mercurial.scmutil.revrange(repo, revs)]
     else:
-        changesets = [mercurial.node.hex(n)[:12]
-                      for n in mercurial.hg._outgoing(ui, repo, dest, {})]
+        # TODO(csilvers): don't use an internal method of hg.
+        changeset_nodes = mercurial.hg._outgoing(ui, repo, dest, {})
+        if not changeset_nodes:
+            raise mercurial.util.Abort('No changesets found to push/review. Use'
+                                       ' --rrev to specify changesets manually.')
+        changesets = [mercurial.node.hex(n)[:12] for n in changeset_nodes]
     review_params['revs'] = changesets
 
     # -rr: people
@@ -264,22 +279,22 @@ def push_with_review(origfn, ui, repo, *args, **opts):
     if not people:
         raise mercurial.util.Abort('Must specify at least one reviewer via -rr.'
                                    '  Pass "-rr none" to bypass review.')
-    if people != ['none']:
-        reviewers = _get_reviewers(ui, auth_token, people)
-        review_params['ixReviewers'] = [r['ixPerson'] for r in reviewers]
+    assert people != ['none']   # should have been checked above
+    reviewers = _get_reviewers(ui, auth_token, people)
+    review_params['ixReviewers'] = [r['ixPerson'] for r in reviewers]
 
     # -e: editor
     editor = opts.pop('editor', None)
     if editor:
          # If -rcomment was also specified, default the editor-text to that.
-	 # Otherwise, use the text from the changesets being reviewed.
+         # Otherwise, use the text from the changesets being reviewed.
          if 'sDescription' in review_params:
-	     default_comment = review_params['sDescription']
-	 else:
+             default_comment = review_params['sDescription']
+         else:
              changeset_descs = [repo[rev].description() for rev in changesets]
              default_comment = "\n".join(changeset_descs)
          current_user = (repo.ui.config('auth', 'kiln.username') or
-	                 repo.ui.config('ui', 'username'))
+                         repo.ui.config('ui', 'username'))
          review_params['sDescription'] = ui.edit(default_comment, current_user)
 
     repo_url_to_push_to = _get_repo_to_push_to(repo, dest)
@@ -292,31 +307,29 @@ def push_with_review(origfn, ui, repo, *args, **opts):
 
     ui.status('Creating review...')
     review_status = _make_review(review_params)
-    if review_status:
-        if 'ixReview' not in review_status:
-           ui.status('FAILED: %s\n' % review_status)
-	   return 0
-        ui.status('done!\n')
-        ui.status('%s/Review/%s\n' % (url_prefix, review_status['ixReview']))
-        return 1
-    else:
-        ui.status('FAILED: unknown error\n')
+    assert review_status, 'Kiln API is returning None??'
+    if 'ixReview' not in review_status:
+        ui.status('FAILED: %s\n' % review_status)
         return 0
+    ui.status('done!\n')
+    ui.status('%s/Review/%s\n' % (url_prefix, review_status['ixReview']))
+    return 1
 
 
 def uisetup(ui):
     """The magic command to set up pre-hg hooks.  We override 'hg push'."""
     entry = mercurial.extensions.wrapcommand(mercurial.commands.table, 'push',
                                              push_with_review)
-    extra_opts = [('', 'rtitle', '',
-                   'use text as default title for code review'),
-                  ('', 'rcomment', '',
-                   'use text as default comment for code review'),
-                  ('', 'rrev', [],
-                   'revisions for review, otherwise defaults to `hg outgoing`'),
+    extra_opts = [
                   ('', 'rr', [],
                    ('people to include in the review, comma separated,'
                     ' or "none" for no review')),
+                  ('', 'rrev', [],
+                   'revisions for review, otherwise defaults to `hg outgoing`'),
+                  ('', 'rtitle', '',
+                   'use text as default title for code review'),
+                  ('', 'rcomment', '',
+                   'use text as default comment for code review'),
                   ('', 'reditor', False,
                    'invoke your editor to input the code review comment'),
                   ]

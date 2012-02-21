@@ -11,8 +11,8 @@
 
 """Wrap 'hg push' to create a code review in Kiln.
 
-This extension adds the --rr (for 'person') flag to hg push, and
-requires all push requests to specify --rr.  After doing the hg
+This extension adds the --rr (for 'review reviewer') flag to hg push,
+and requires all push requests to specify --rr.  After doing the hg
 push, the extension will create a new review request on kilnhg, and
 set the reviewers to be those people specified with the --rr flag.
 

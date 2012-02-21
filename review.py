@@ -11,12 +11,12 @@
 
 """Wrap 'hg push' to create a code review in Kiln.
 
-This extension adds the -p (for 'person') flag to hg push, and
-requires all push requests to specify -p.  After doing the hg
+This extension adds the --rr (for 'person') flag to hg push, and
+requires all push requests to specify --rr.  After doing the hg
 push, the extension will create a new review request on kilnhg, and
-set the reviewers to be those people specified with the -p flag.
+set the reviewers to be those people specified with the --rr flag.
 
-The user may specify -p none to override the review functionality.
+The user may specify --rr none to override the review functionality.
 In that case, this extension will just do a normal 'hg push'.
 
 This script requires the following fields to be set in the hg
@@ -25,9 +25,6 @@ config file (.hgrc or the like):
    kiln.prefix: the kilnhg url for this project (eg http://khanacademy.kilnhg.org)
    kiln.username: your kilnhg username (eg csilvers@khanacademy.org)
    kiln.password: your kilnhg password (eg likeidtellyou)
-
-TODO(csilvers): compare to
-https://bitbucket.org/runeh/identities/src/0f9ac5a19e48/identities.py
 """
 
 import json

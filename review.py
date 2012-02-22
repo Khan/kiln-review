@@ -275,7 +275,7 @@ def push_with_review(origfn, ui, repo, *args, **opts):
     people = opts.pop('rr', None)
     if not people:
         raise mercurial.util.Abort('Must specify at least one reviewer via -rr.'
-                                   '  Pass "-rr none" to bypass review.')
+                                   '  Pass "--rr none" to bypass review.')
     assert people != ['none']   # should have been checked above
     reviewers = _get_reviewers(ui, auth_token, people)
     review_params['ixReviewers'] = [r['ixPerson'] for r in reviewers]

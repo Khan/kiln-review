@@ -97,7 +97,7 @@ def _get_repo_to_push_to(repo, preferred_repo):
     repos = dict((x.lower(), y.lower())
                  for (x,y) in repo.ui.configitems('paths'))
     if preferred_repo:
-        return repos.get(preferred_repo.lower(), None)
+        return repos.get(preferred_repo.lower(), preferred_repo.lower())
     if 'default-push' in repos:
         return repos['default-push']
     if 'default' in repos:

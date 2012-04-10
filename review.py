@@ -39,6 +39,8 @@ import mercurial.node
 import mercurial.scmutil
 import mercurial.ui
 import mercurial.util
+import os
+import sys
 import urllib
 import urllib2
 
@@ -74,13 +76,53 @@ def _slurp_from_kiln(command, params, post=False):
     return _slurp(_kiln_url(command), params, post)
 
 
-def _get_authtoken():
+def _get_authtoken_from_kilnauth(ui):
+    """Attempts to use kilnauth, if it is installed, to find a kiln token."""
+    kilnauth_path = ui.config('extensions', 'kilnauth')
+    if kilnauth_path:
+        sys.path.append(os.path.dirname(kilnauth_path))
+        try:
+            import kilnauth
+        except ImportError:
+            return None
+
+        class FakeRepo:
+            def local(self): return True
+        kilnauth.reposetup(ui, FakeRepo())
+
+        hostname = ui.config('auth', 'kiln.prefix')
+        if '://' in hostname:
+            hostname = hostname[hostname.find('://')+3:]
+        if hostname.endswith('/'):
+            hostname = hostname[:-1]
+
+        for cookie in kilnauth.get_cookiejar(ui):
+            if cookie.domain == hostname and cookie.name == 'fbToken':
+                return cookie.value
+        return None
+
+
+def _get_authtoken(ui):
     """Returns credentials for accessing the kilnhg website."""
-    # TODO(csilvers): just do this once and store the token, not the password
+    # If we can, we extract the token from kilnauth, if not we
+    # fall back to hard-coded username/password in the config.
+    retval = _get_authtoken_from_kilnauth(ui)
+    if retval:
+        return retval
+
     username = mercurial.ui.ui().config('auth', 'kiln.username')
     password = mercurial.ui.ui().config('auth', 'kiln.password')
-    return _slurp_from_kiln('Auth/Login',
-                            {'sUser': username, 'sPassword': password})
+    retval = _slurp_from_kiln('Auth/Login',
+                              {'sUser': username, 'sPassword': password})
+
+    if 'errors' in retval:
+        raise mercurial.util.Abort('Cannot access kiln. Make sure you either'
+                                   ' have kilnauth in your .hgrc and with a'
+                                   ' valid cookie (try running "hg pull"), or'
+                                   ' you have kiln.username and kiln.password'
+                                   ' set in your .hgrc')
+
+    return retval
 
 
 def _get_repo_to_push_to(repo, preferred_repo):
@@ -137,11 +179,6 @@ def _get_reviewers(ui, auth_token, reviewers):
        Abort if no person-record is found for any of the reviewers.
     """
     all_people = _slurp_from_kiln('Person', {'token': auth_token})
-    # This is where it shows up if you don't have permissions set.
-    if 'errors' in all_people:
-        raise mercurial.util.Abort('Cannot access kiln. Make sure you have'
-                                   ' kiln.username and kiln.password set in'
-                                   ' your .hgrc')
 
     # Convert the list to a set, dealing with commas as we go.
     all_reviewers = set()
@@ -257,7 +294,7 @@ def push_with_review(origfn, ui, repo, *args, **opts):
 
     review_params = {}
 
-    auth_token = _get_authtoken()
+    auth_token = _get_authtoken(ui)
     review_params['token'] = auth_token
 
     # -rtitle: title

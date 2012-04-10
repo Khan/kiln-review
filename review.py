@@ -99,7 +99,8 @@ def _get_authtoken_from_kilnauth(ui):
         for cookie in kilnauth.get_cookiejar(ui):
             if cookie.domain == hostname and cookie.name == 'fbToken':
                 return cookie.value
-        return None
+
+    return None
 
 
 def _get_authtoken(ui):

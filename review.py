@@ -137,6 +137,11 @@ def _get_reviewers(ui, auth_token, reviewers):
        Abort if no person-record is found for any of the reviewers.
     """
     all_people = _slurp_from_kiln('Person', {'token': auth_token})
+    # This is where it shows up if you don't have permissions set.
+    if 'errors' in all_people:
+        raise mercurial.util.Abort('Cannot access kiln. Make sure you have'
+                                   ' kiln.username and kiln.password set in'
+                                   ' your .hgrc')
 
     # Convert the list to a set, dealing with commas as we go.
     all_reviewers = set()
@@ -229,12 +234,17 @@ def push_with_review(origfn, ui, repo, *args, **opts):
     if opts.get('rr') == ['none']:
         return origfn(ui, repo, *args, **opts)
 
+    # TODO(csilvers): also bypass review if
+    #  a) this push is a conflict-free merge push
+    #  b) they have a review number in the commit notes (this means
+    #     there's already a review for them in kilnhg).
+
     url_prefix = repo.ui.config('auth', 'kiln.prefix')
     if url_prefix is None:
         ui.warn("In order to work, in your hgrc please set:\n\n")
         ui.warn("[auth]\n")
-        ui.warn("kiln.prefix = https://<kilnrepo.kilnhg.com>\n")
-        ui.warn("kiln.username = <username>@<domain>.com\n")
+        ui.warn("kiln.prefix = https://<kilnrepo.kilnhg.com>  # no trailing /\n")
+        ui.warn("kiln.username = <username>@<domain.com>\n")
         ui.warn("kiln.password = <password>\n")
         return 0
 

@@ -77,7 +77,7 @@ def _get_authtoken_from_kilnauth(ui):
     """Attempts to use kilnauth, if it is installed, to find a kiln token."""
     kilnauth_path = ui.config('extensions', 'kilnauth')
     if kilnauth_path:
-        sys.path.append(os.path.dirname(kilnauth_path))
+        sys.path.append(os.path.dirname(os.path.expanduser(kilnauth_path)))
         try:
             import kilnauth
         except ImportError:

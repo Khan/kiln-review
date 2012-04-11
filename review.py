@@ -77,7 +77,7 @@ def _get_authtoken_from_kilnauth(ui):
     """Attempts to use kilnauth, if it is installed, to find a kiln token."""
     kilnauth_path = ui.config('extensions', 'kilnauth')
     if kilnauth_path:
-        sys.path.append(os.path.dirname(kilnauth_path))
+        sys.path.append(os.path.dirname(os.path.expanduser(kilnauth_path)))
         try:
             import kilnauth
         except ImportError:
@@ -114,11 +114,16 @@ def _get_authtoken(ui):
                               {'sUser': username, 'sPassword': password})
 
     if 'errors' in retval:
-        raise mercurial.util.Abort('Cannot access kiln. Make sure you either'
-                                   ' have kilnauth in your .hgrc and with a'
-                                   ' valid cookie (try running "hg pull"), or'
-                                   ' you have kiln.username and kiln.password'
-                                   ' set in your .hgrc')
+        err = ('Cannot access kiln.  To fix:\n'
+               '   1) Make sure you have "kilnauth" in your .hgrc\n'
+               '   2) Make sure you have a valid cookie (run hg identify '
+               'https://khanacademy.kilnhg.com/Code/Private/Group/backup-and-analytics '
+               'to force that)\n'
+               '   3) If neither of these solve the problem, you can bypass '
+               'kilnauth by hard-coding your username and password in your '
+               '.hgrc: add [auth]kiln.username (your kiln email address) and '
+               '[auth]kiln.password.')
+        raise mercurial.util.Abort(err)
 
     return retval
 

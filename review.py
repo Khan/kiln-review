@@ -38,6 +38,7 @@ import mercurial.ui
 import mercurial.util
 import os
 import sys
+import time
 import urllib
 import urllib2
 
@@ -65,7 +66,7 @@ def _slurp(url, params, post=False):
 def _kiln_url(command):
     """Create a kiln api call to your kiln project, for the given command."""
     url_prefix = mercurial.ui.ui().config('auth', 'kiln.prefix')
-    return '%s/Api/1.0/%s' % (url_prefix, command)
+    return '%s/Api/2.0/%s' % (url_prefix, command)
 
 
 def _slurp_from_kiln(command, params, post=False):
@@ -355,13 +356,20 @@ def push_with_review(origfn, ui, repo, *args, **opts):
     origfn(ui, repo, *args, **opts)
 
     ui.status('Creating review...')
+
+    # Sleep for two seconds after the push and before we attempt to create the
+    # review.
+    # TODO(kamens): remove this if/when Kiln team gets back with their
+    # explanation.
+    time.sleep(2)
+
     review_status = _make_review(review_params)
     assert review_status, 'Kiln API is returning None??'
-    if 'ixReview' not in review_status:
+    if 'sReview' not in review_status:
         ui.status('FAILED: %s\n' % review_status)
         return 0
     ui.status('done!\n')
-    ui.status('%s/Review/%s\n' % (url_prefix, review_status['ixReview']))
+    ui.status('%s/Review/%s\n' % (url_prefix, review_status['sReview']))
     return 1
 
 

@@ -331,6 +331,17 @@ def push_with_review(origfn, ui, repo, *args, **opts):
         raise mercurial.util.Abort('Must specify at least one reviewer via --rr.'
                                    '  Pass "--rr none" to bypass review.')
     assert people != ['none']   # should have been checked above
+
+    # The typical use case is to push a review with one or two changes.
+    # A common user error is pushing a merge, which can result in a lot of
+    # changes in the review accidentally. Try to detect that.
+    if len(changesets) > 2:
+        print ("You're about to create a review with %s changesets." %
+                len(changesets))
+        confirmed = raw_input("Are you sure? [y/N]: ")
+        if confirmed.lower() not in ['y', 'yes']:
+            raise mercurial.util.Abort("Bailed.")
+
     reviewers = _get_reviewers(ui, auth_token, people)
     review_params['ixReviewers'] = [r['ixPerson'] for r in reviewers]
 

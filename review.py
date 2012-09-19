@@ -352,8 +352,8 @@ def push_with_review(origfn, ui, repo, *args, **opts):
     # -e: editor
     editor = opts.pop('editor', None)
     if editor:
-         # If -rcomment was also specified, default the editor-text to that.
-         # Otherwise, use the text from the changesets being reviewed.
+        # If -rcomment was also specified, default the editor-text to that.
+        # Otherwise, use the text from the changesets being reviewed.
         if 'sDescription' in review_params:
             default_comment = review_params['sDescription']
         else:

@@ -46,7 +46,7 @@ import urllib2
 def _slurp(url, params, post=False):
     """Fetch contents of a url-with-query-params dict (either GET or POST)."""
     try:
-        params = urllib.urlencode(params, doseq=True)   # param-vals can be lists
+        params = urllib.urlencode(params, doseq=True)   # vals can be lists
         if post:
             handle = urllib2.urlopen(url, params)
         else:
@@ -56,7 +56,7 @@ def _slurp(url, params, post=False):
         finally:
             handle.close()
     except urllib2.URLError, why:
-        # It would be nice to show params too, but they may contain a password.
+        # Would be nice to show params too, but they may contain a password.
         raise mercurial.util.Abort('Error communicating with kilnhg:'
                                    ' url "%s", error "%s"' % (url, why))
     return json.loads(content)
@@ -85,12 +85,13 @@ def _get_authtoken_from_kilnauth(ui):
             return None
 
         class FakeRepo:
-            def local(self): return True
+            def local(self):
+                return True
         kilnauth.reposetup(ui, FakeRepo())
 
         hostname = ui.config('auth', 'kiln.prefix')
         if '://' in hostname:
-            hostname = hostname[hostname.find('://')+3:]
+            hostname = hostname[hostname.find('://') + 3:]
         if hostname.endswith('/'):
             hostname = hostname[:-1]
 
@@ -144,7 +145,7 @@ def _get_repo_to_push_to(repo, preferred_repo):
     """
     # We do all case-insensitive comparisons here, and convert to a dict.
     repos = dict((x.lower(), y.lower())
-                 for (x,y) in repo.ui.configitems('paths'))
+                 for (x, y) in repo.ui.configitems('paths'))
     if preferred_repo:
         return repos.get(preferred_repo.lower(), preferred_repo.lower())
     if 'default-push' in repos:
@@ -188,7 +189,7 @@ def _get_reviewers(ui, auth_token, reviewers):
     all_reviewers = set()
     for reviewer_entry in reviewers:
         for one_review in reviewer_entry.split(','):
-           all_reviewers.add(one_review.strip().lower())
+            all_reviewers.add(one_review.strip().lower())
 
     # For each asked-for reviewer, find the set of people records that
     # reviewer could be referring to.  Hopefully it's exactly one!
@@ -198,14 +199,15 @@ def _get_reviewers(ui, auth_token, reviewers):
         for person in all_people:
             if (reviewer in person["sName"].lower() or
                 reviewer in person["sEmail"].lower()):
-               candidate_reviewers.append(person)
+                candidate_reviewers.append(person)
 
         if not candidate_reviewers:   # no person matched the reviewer
             raise mercurial.util.Abort('No reviewer found matching "%s"'
                                        % reviewer)
         elif len(candidate_reviewers) > 1:
-            ui.status('\nHmm...There are a few folks matching "%s"\n' % reviewer)
-            choices = ['%s. %s (%s)\n' % (i+1, p['sName'], p['sEmail'])
+            ui.status('\nHmm...There are a few folks matching "%s"\n'
+                      % reviewer)
+            choices = ['%s. %s (%s)\n' % (i + 1, p['sName'], p['sEmail'])
                        for (i, p) in enumerate(candidate_reviewers)]
             for choice in choices:
                 ui.status(choice)
@@ -284,7 +286,8 @@ def push_with_review(origfn, ui, repo, *args, **opts):
     if url_prefix is None:
         ui.warn("In order to work, in your hgrc please set:\n\n")
         ui.warn("[auth]\n")
-        ui.warn("kiln.prefix = https://<kilnrepo.kilnhg.com>  # no trailing /\n")
+        ui.warn("kiln.prefix = https://<kilnrepo.kilnhg.com>"
+                "  # no trailing /\n")
         ui.warn("kiln.username = <username>@<domain.com>\n")
         ui.warn("kiln.password = <password>\n")
         return 0
@@ -320,16 +323,17 @@ def push_with_review(origfn, ui, repo, *args, **opts):
         # TODO(csilvers): don't use an internal function from hg.
         changeset_nodes = mercurial.hg._outgoing(ui, repo, dest, {})
         if not changeset_nodes:
-            raise mercurial.util.Abort('No changesets found to push/review. Use'
-                                       ' --rrev to specify changesets manually.')
+            raise mercurial.util.Abort('No changesets found to push/review. '
+                                       'Use --rrev to specify changesets '
+                                       'manually.')
         changesets = [mercurial.node.hex(n)[:12] for n in changeset_nodes]
     review_params['revs'] = changesets
 
     # -rr: people
     people = opts.pop('rr', None)
     if not people:
-        raise mercurial.util.Abort('Must specify at least one reviewer via --rr.'
-                                   '  Pass "--rr none" to bypass review.')
+        raise mercurial.util.Abort('Must specify at least one reviewer via '
+                                   '--rr.  Pass "--rr none" to bypass review.')
     assert people != ['none']   # should have been checked above
 
     # The typical use case is to push a review with one or two changes.
@@ -350,14 +354,14 @@ def push_with_review(origfn, ui, repo, *args, **opts):
     if editor:
          # If -rcomment was also specified, default the editor-text to that.
          # Otherwise, use the text from the changesets being reviewed.
-         if 'sDescription' in review_params:
-             default_comment = review_params['sDescription']
-         else:
-             changeset_descs = [repo[rev].description() for rev in changesets]
-             default_comment = "\n".join(changeset_descs)
-         current_user = (repo.ui.config('auth', 'kiln.username') or
-                         repo.ui.config('ui', 'username'))
-         review_params['sDescription'] = ui.edit(default_comment, current_user)
+        if 'sDescription' in review_params:
+            default_comment = review_params['sDescription']
+        else:
+            changeset_descs = [repo[rev].description() for rev in changesets]
+            default_comment = "\n".join(changeset_descs)
+        current_user = (repo.ui.config('auth', 'kiln.username') or
+                        repo.ui.config('ui', 'username'))
+        review_params['sDescription'] = ui.edit(default_comment, current_user)
 
     repo_url_to_push_to = _get_repo_to_push_to(repo, dest)
     review_params['ixRepo'] = _get_repo_index_for_repo_url(repo, auth_token,
@@ -393,7 +397,7 @@ def uisetup(ui):
                    ('people to include in the review, comma separated,'
                     ' or "none" for no review')),
                   ('', 'rrev', [],
-                   'revisions for review, otherwise defaults to `hg outgoing`'),
+                   'revisions for review (defaults to `hg outgoing`)'),
                   ('', 'rtitle', '',
                    'use text as default title for code review'),
                   ('', 'rcomment', '',

@@ -321,7 +321,8 @@ def push_with_review(origfn, ui, repo, *args, **opts):
                       for rev in mercurial.scmutil.revrange(repo, revs)]
     else:
         # TODO(csilvers): don't use an internal function from hg.
-        changeset_nodes = mercurial.hg._outgoing(ui, repo, dest, {})
+        changeset_nodes = mercurial.hg._outgoing(ui, repo, dest,
+                                                 {'rev': opts.get('rev')})
         if not changeset_nodes:
             raise mercurial.util.Abort('No changesets found to push/review. '
                                        'Use --rrev to specify changesets '

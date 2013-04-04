@@ -371,7 +371,7 @@ def push_with_review(origfn, ui, repo, *args, **opts):
     # First do the push, then do the review.
     origfn(ui, repo, *args, **opts)
 
-    ui.status('Creating review...')
+    ui.status('Creating review...\n')
 
     # Sleep for two seconds after the push and before we attempt to create the
     # review.
@@ -381,6 +381,16 @@ def push_with_review(origfn, ui, repo, *args, **opts):
 
     review_status = _make_review(review_params)
     assert review_status, 'Kiln API is returning None??'
+
+    errors = review_status.get('errors')
+    if errors and errors[0]['codeError'] == 'InvalidChangesets':
+        ui.status(
+                'Got "invalid changesets" error back from Kiln -- '
+                'trying again in 5...\n')
+        time.sleep(5)
+
+        review_status = _make_review(review_params)
+
     if 'sReview' not in review_status:
         ui.status('FAILED: %s\n' % review_status)
         return 0
